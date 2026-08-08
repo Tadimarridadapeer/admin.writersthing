@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, Loader2, CheckCircle2 } from "lucide-react";
-import { supabase } from "@shared/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 export default function ResetPasswordPage() {
   const router = useRouter();

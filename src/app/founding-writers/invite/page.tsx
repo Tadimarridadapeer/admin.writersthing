@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@shared/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { Loader2, Mail, UserPlus, CheckCircle2 } from "lucide-react";
 import { logActivity } from "@/lib/activityLogger";
 

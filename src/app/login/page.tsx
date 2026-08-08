@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Loader2, Eye, EyeOff } from "lucide-react";
-import { supabase } from "@shared/lib/supabase";
+import { ShieldCheck, Loader2, Eye } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { logActivity, logLoginHistory } from "@/lib/activityLogger";
 
 export default function LoginPage() {
@@ -197,14 +197,13 @@ export default function LoginPage() {
                   className="appearance-none block w-full px-3 pr-10 py-3 border border-zinc-800 rounded bg-black text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-white focus:border-white sm:text-sm transition-all"
                   placeholder="••••••••"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-3 flex items-center text-zinc-600 hover:text-zinc-300 transition-colors"
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors p-3 focus:outline-none"
+                  >
+                    <Eye size={18} className={showPassword ? "opacity-50" : ""} />
+                  </button>
               </div>
             </div>
 

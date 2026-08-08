@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@shared/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { Loader2, Users, CheckCircle2, Clock } from "lucide-react";
 import Link from "next/link";
 

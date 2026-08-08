@@ -1,4 +1,4 @@
-import { supabase } from "@shared/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 interface LogActivityParams {
   userId?: string;

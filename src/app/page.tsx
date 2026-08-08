@@ -12,7 +12,7 @@ import {
   ArrowUpRight,
   DollarSign
 } from "lucide-react";
-import { supabase } from "@shared/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 import { useAuth } from "@/context/AuthContext";
 

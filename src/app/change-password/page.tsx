@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Loader2, CheckCircle2, Eye, EyeOff } from "lucide-react";
-import { supabase } from "@shared/lib/supabase";
+import { ShieldCheck, Loader2, CheckCircle2, Eye } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/activityLogger";
 
 export default function ChangePasswordPage() {
@@ -145,7 +145,7 @@ export default function ChangePasswordPage() {
                     className="absolute inset-y-0 right-3 flex items-center text-zinc-600 hover:text-zinc-300 transition-colors"
                     tabIndex={-1}
                   >
-                    {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
+                    <Eye size={15} className={showCurrent ? "opacity-50" : ""} />
                   </button>
                 </div>
               </div>
@@ -174,7 +174,7 @@ export default function ChangePasswordPage() {
                     className="absolute inset-y-0 right-3 flex items-center text-zinc-600 hover:text-zinc-300 transition-colors"
                     tabIndex={-1}
                   >
-                    {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
+                    <Eye size={15} className={showNew ? "opacity-50" : ""} />
                   </button>
                 </div>
                 {/* Password strength rules */}
@@ -230,7 +230,7 @@ export default function ChangePasswordPage() {
                     className="absolute inset-y-0 right-3 flex items-center text-zinc-600 hover:text-zinc-300 transition-colors"
                     tabIndex={-1}
                   >
-                    {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
+                    <Eye size={15} className={showConfirm ? "opacity-50" : ""} />
                   </button>
                 </div>
                 {confirmPassword && !passwordsMatch && (

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { supabase } from "@shared/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 interface OperationsUser {
   id: string;

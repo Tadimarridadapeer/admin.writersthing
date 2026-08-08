@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ShieldCheck, Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
-import { supabase } from "@shared/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
 export default function ForgotPasswordPage() {
