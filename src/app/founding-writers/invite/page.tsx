@@ -108,10 +108,10 @@ export default function InviteFounder() {
                 Invite Another
               </button>
               <button
-                onClick={() => router.push("/founding-writers/pending")}
+                onClick={() => router.push("/founding-writers/list")}
                 className="px-6 py-3 bg-black text-white rounded text-xs font-bold uppercase tracking-widest hover:bg-zinc-800 transition-all"
               >
-                View Pending
+                View Founder List
               </button>
             </div>
           </div>

@@ -25,12 +25,11 @@ export default function FoundingWritersDashboard() {
 
     if (!error && data) {
       const accepted = data.filter((w: any) => w.status === "Accepted").length;
-      const pending = data.filter((w: any) => ["Pending", "Invited"].includes(w.status)).length;
       const totalTaken = data.length;
       setStats({
         totalSlots: 100,
         accepted,
-        pending,
+        pending: 0,
         remaining: 100 - totalTaken,
       });
     }
@@ -60,16 +59,14 @@ export default function FoundingWritersDashboard() {
         <div className="flex justify-center py-20"><Loader2 className="animate-spin text-zinc-400" size={32} /></div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <StatCard label="Total Slots" value={stats.totalSlots} icon={<Users size={20} />} />
-            <StatCard label="Accepted" value={stats.accepted} icon={<CheckCircle2 size={20} />} textColor="text-emerald-600" />
-            <StatCard label="Pending/Invited" value={stats.pending} icon={<Clock size={20} />} textColor="text-amber-600" />
-            <StatCard label="Remaining Slots" value={stats.remaining} icon={<Users size={20} />} alert={stats.remaining < 10} />
+            <StatCard label="Accepted Founders" value={stats.accepted} icon={<CheckCircle2 size={20} />} textColor="text-emerald-600" />
+            <StatCard label="Available Slots" value={stats.remaining} icon={<Users size={20} />} alert={stats.remaining < 10} />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
             <ActionCard title="Invite Founder" desc="Invite a new founding writer to the platform." href="/founding-writers/invite" />
-            <ActionCard title="Pending Invitations" desc="View and manage pending invitations." href="/founding-writers/pending" />
             <ActionCard title="Founder List" desc="View the complete list of founding writers." href="/founding-writers/list" />
           </div>
         </>

@@ -52,7 +52,6 @@ export function Sidebar() {
               <NavItem href="/founding-writers" icon={<LayoutDashboard size={14} />} label="Dashboard" active={pathname === "/founding-writers"} />
               <NavItem href="/founding-writers/list" icon={<Award size={14} />} label="Founder List" active={pathname === "/founding-writers/list"} />
               <NavItem href="/founding-writers/invite" icon={<FileText size={14} />} label="Invite Founder" active={pathname === "/founding-writers/invite"} />
-              <NavItem href="/founding-writers/pending" icon={<Clock size={14} />} label="Pending Invitations" active={pathname === "/founding-writers/pending"} />
             </>
           )}
           <NavItem href="/applications" icon={<FileCheck size={14} />} label="Applications" active={pathname === "/applications"} />
