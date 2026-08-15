@@ -1,12 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // @ts-ignore
-  turbopack: {
-    root: process.cwd(),
-  },
   experimental: {
-    externalDir: true,
     optimizePackageImports: ['lucide-react'],
   },
   images: {

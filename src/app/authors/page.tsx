@@ -40,7 +40,7 @@ export default function AuthorsPage() {
       let hireableCount = 0;
       let earningsSum = 0;
 
-      authorsData.forEach((author) => {
+      authorsData.forEach((author: any) => {
         if (author.users.is_verified_writer) verifiedCount++;
         if (author.users.available_for_hire) hireableCount++;
         earningsSum += Number(author.total_earnings) || 0;
@@ -56,7 +56,7 @@ export default function AuthorsPage() {
 
     if (!foundingError && foundingData) {
       const fwMap = new Map();
-      foundingData.forEach(f => fwMap.set(f.user_id, f.founder_number));
+      foundingData.forEach((f: any) => fwMap.set(f.user_id, f.founder_number));
       setFoundingWriters(fwMap);
     }
 
