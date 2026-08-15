@@ -15,6 +15,7 @@ export default function InviteFounder() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [emailWarning, setEmailWarning] = useState("");
   const [assignedNumber, setAssignedNumber] = useState<number | null>(null);
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -25,45 +26,25 @@ export default function InviteFounder() {
     setIsLoading(true);
 
     try {
-      // 1. Get the next available founder number
-      const { data: existingWriters, error: fetchError } = await supabase
-        .from("founding_writers")
-        .select("founder_number")
-        .order("founder_number", { ascending: false })
-        .limit(1);
+      const response = await fetch("/api/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          fullName,
+          actorId: user?.id,
+        }),
+      });
 
-      if (fetchError) throw fetchError;
+      const data = await response.json();
 
-      const nextNumber = existingWriters && existingWriters.length > 0 
-        ? existingWriters[0].founder_number + 1 
-        : 1;
-
-      if (nextNumber > 100) {
-        throw new Error("All 100 founding writer slots have been filled.");
+      if (!response.ok || data.error) {
+        throw new Error(data.error || "Failed to send invitation.");
       }
+      
+      const nextNumber = data.assignedNumber;
 
-      // 2. Insert the new founder
-      const { error: insertError } = await supabase
-        .from("founding_writers")
-        .insert({
-          founder_number: nextNumber,
-          full_name: fullName,
-          email_address: email,
-          status: "Invited",
-          invited_by: user?.id
-        });
-
-      if (insertError) {
-        if (insertError.code === "23505") { // Unique violation
-          if (insertError.message.includes("founder_number")) {
-             throw new Error("Concurrency conflict. Please try inviting again.");
-          }
-          throw new Error("A founding writer with this email already exists.");
-        }
-        throw insertError;
-      }
-
-      // 3. Log activity
+      // Log activity
       await logActivity({
         userId: user?.id,
         roleName: user?.role_name,
@@ -74,6 +55,11 @@ export default function InviteFounder() {
 
       setAssignedNumber(nextNumber);
       setSuccess(true);
+      if (!data.emailSent) {
+        setEmailWarning(data.message || "Invitation created, but email delivery failed.");
+      } else {
+        setEmailWarning("");
+      }
       setFullName("");
       setEmail("");
     } catch (err: any) {
@@ -100,13 +86,19 @@ export default function InviteFounder() {
             <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
               <CheckCircle2 size={32} className="text-emerald-600" />
             </div>
-            <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 mb-2">Invitation Sent</h2>
+            <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 mb-2">
+              {emailWarning ? "Database Updated" : "Invitation Sent"}
+            </h2>
             <p className="text-sm text-zinc-500 mb-6">
-              The invitation has been successfully recorded. They have been permanently assigned:
+              {emailWarning ? (
+                <span className="text-amber-600 font-bold">{emailWarning}</span>
+              ) : (
+                "The invitation has been successfully recorded. They have been permanently assigned:"
+              )}
             </p>
             <div className="inline-block px-6 py-4 bg-zinc-50 border border-zinc-200 rounded-lg mb-8">
               <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Founder Number</p>
-              <p className="text-4xl font-mono font-bold text-zinc-900">#{String(assignedNumber).padStart(3, '0')}</p>
+              <p className="text-4xl font-mono font-bold text-zinc-900">#{String(assignedNumber).padStart(5, '0')}</p>
             </div>
             <div className="flex gap-4 justify-center">
               <button

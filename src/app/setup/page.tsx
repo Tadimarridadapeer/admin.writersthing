@@ -79,7 +79,7 @@ export default function SetupPage() {
         setChecking(false);
       }
     })();
-  }, [router]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

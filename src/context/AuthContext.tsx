@@ -142,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     initAuth();
-  }, [pathname, isPublicPath, router, fetchOperationsUser]);
+  }, [pathname, isPublicPath, fetchOperationsUser]);
 
   // Listen for auth state changes
   useEffect(() => {
