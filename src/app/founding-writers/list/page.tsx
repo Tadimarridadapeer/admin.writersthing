@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, UserPlus, RefreshCw } from "lucide-react";
+import Link from "next/link";
 
 export default function FoundingWritersList() {
   const { isSuperAdmin } = useAuth();
@@ -13,27 +14,44 @@ export default function FoundingWritersList() {
 
   const fetchWriters = useCallback(async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from("founding_writers")
-      .select("*, invited_by_user:operations_users!invited_by(full_name)")
-      .order("founder_number", { ascending: true });
+    try {
+      // First attempt: with relation join
+      let { data, error } = await supabase
+        .from("founding_writers")
+        .select("*, invited_by_user:operations_users!invited_by(full_name)")
+        .order("founder_number", { ascending: true });
 
-    if (!error && data) {
-      setWriters(data);
+      // Fallback: if join fails due to FK constraint mismatch, select all columns cleanly
+      if (error || !data) {
+        const fallbackRes = await supabase
+          .from("founding_writers")
+          .select("*")
+          .order("founder_number", { ascending: true });
+        
+        data = fallbackRes.data || [];
+      }
+
+      setWriters(data || []);
+    } catch (err) {
+      console.error("Error fetching founding writers:", err);
+      setWriters([]);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
     fetchWriters();
   }, [fetchWriters]);
 
-  const filteredWriters = writers.filter(w => 
-    w.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    w.email_address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    w.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    w.founder_number.toString().includes(searchQuery)
-  );
+  const filteredWriters = writers.filter(w => {
+    const name = (w.full_name || "").toLowerCase();
+    const email = (w.email_address || w.email || "").toLowerCase();
+    const status = (w.status || "").toLowerCase();
+    const num = (w.founder_number ?? "").toString();
+    const q = searchQuery.toLowerCase();
+    return name.includes(q) || email.includes(q) || status.includes(q) || num.includes(q);
+  });
 
   if (!isSuperAdmin) {
     return <div className="p-8 text-center text-red-600">You do not have permission to view this module.</div>;
@@ -41,9 +59,28 @@ export default function FoundingWritersList() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight uppercase text-zinc-900">Founder List</h1>
-        <p className="text-sm text-zinc-500 mt-1">View the complete list of founding writers.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight uppercase text-zinc-900">Founder List</h1>
+          <p className="text-sm text-zinc-500 mt-1">View the complete list of founding writers.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchWriters}
+            disabled={isLoading}
+            className="p-2.5 bg-white border border-zinc-200 hover:border-zinc-300 rounded text-zinc-600 hover:text-zinc-900 transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
+          </button>
+          <Link
+            href="/founding-writers/invite"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-black hover:bg-zinc-800 text-white text-xs font-black uppercase tracking-widest rounded transition-colors"
+          >
+            <UserPlus size={14} />
+            Invite Founder
+          </Link>
+        </div>
       </div>
 
       <div className="flex justify-between items-center mb-8">
@@ -81,7 +118,7 @@ export default function FoundingWritersList() {
             ) : filteredWriters.length === 0 ? (
               <tr>
                 <td colSpan={6} className="text-center py-12 text-zinc-400 text-xs uppercase tracking-widest">
-                  No writers found.
+                  {searchQuery ? "No matching writers found." : "No founding writers registered yet."}
                 </td>
               </tr>
             ) : (
@@ -93,7 +130,7 @@ export default function FoundingWritersList() {
                   <td className="px-6 py-4">
                     <span className="font-bold text-sm text-zinc-900">{writer.full_name}</span>
                   </td>
-                  <td className="px-6 py-4 text-xs text-zinc-500">{writer.email_address}</td>
+                  <td className="px-6 py-4 text-xs text-zinc-500">{writer.email_address || writer.email}</td>
                   <td className="px-6 py-4">
                     <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded ${
                       writer.status === 'Accepted' ? 'bg-emerald-50 text-emerald-700' :

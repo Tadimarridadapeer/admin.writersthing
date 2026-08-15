@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, UserPlus, RefreshCw } from "lucide-react";
+import Link from "next/link";
 
 export default function PendingInvitations() {
   const { isSuperAdmin } = useAuth();
@@ -13,27 +14,42 @@ export default function PendingInvitations() {
 
   const fetchWriters = useCallback(async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from("founding_writers")
-      .select("*, invited_by_user:operations_users!invited_by(full_name)")
-      .in("status", ["Pending", "Invited"])
-      .order("created_at", { ascending: false });
+    try {
+      let { data, error } = await supabase
+        .from("founding_writers")
+        .select("*, invited_by_user:operations_users!invited_by(full_name)")
+        .in("status", ["Pending", "Invited"])
+        .order("created_at", { ascending: false });
 
-    if (!error && data) {
-      setWriters(data);
+      if (error || !data) {
+        const fallbackRes = await supabase
+          .from("founding_writers")
+          .select("*")
+          .in("status", ["Pending", "Invited"])
+          .order("created_at", { ascending: false });
+        data = fallbackRes.data || [];
+      }
+
+      setWriters(data || []);
+    } catch (err) {
+      console.error("Error fetching pending invitations:", err);
+      setWriters([]);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
     fetchWriters();
   }, [fetchWriters]);
 
-  const filteredWriters = writers.filter(w => 
-    w.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    w.email_address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    w.founder_number.toString().includes(searchQuery)
-  );
+  const filteredWriters = writers.filter(w => {
+    const name = (w.full_name || "").toLowerCase();
+    const email = (w.email_address || w.email || "").toLowerCase();
+    const num = (w.founder_number ?? "").toString();
+    const q = searchQuery.toLowerCase();
+    return name.includes(q) || email.includes(q) || num.includes(q);
+  });
 
   if (!isSuperAdmin) {
     return <div className="p-8 text-center text-red-600">You do not have permission to view this module.</div>;
@@ -41,9 +57,28 @@ export default function PendingInvitations() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight uppercase text-zinc-900">Pending Invitations</h1>
-        <p className="text-sm text-zinc-500 mt-1">View pending founding writer invitations.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight uppercase text-zinc-900">Pending Invitations</h1>
+          <p className="text-sm text-zinc-500 mt-1">View pending founding writer invitations.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchWriters}
+            disabled={isLoading}
+            className="p-2.5 bg-white border border-zinc-200 hover:border-zinc-300 rounded text-zinc-600 hover:text-zinc-900 transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
+          </button>
+          <Link
+            href="/founding-writers/invite"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-black hover:bg-zinc-800 text-white text-xs font-black uppercase tracking-widest rounded transition-colors"
+          >
+            <UserPlus size={14} />
+            Invite Founder
+          </Link>
+        </div>
       </div>
 
       <div className="flex justify-between items-center mb-8">
@@ -80,7 +115,7 @@ export default function PendingInvitations() {
             ) : filteredWriters.length === 0 ? (
               <tr>
                 <td colSpan={5} className="text-center py-12 text-zinc-400 text-xs uppercase tracking-widest">
-                  No pending invitations found.
+                  {searchQuery ? "No matching invitations found." : "No pending invitations found."}
                 </td>
               </tr>
             ) : (
@@ -92,7 +127,7 @@ export default function PendingInvitations() {
                   <td className="px-6 py-4">
                     <span className="font-bold text-sm text-zinc-900">{writer.full_name}</span>
                   </td>
-                  <td className="px-6 py-4 text-xs text-zinc-500">{writer.email_address}</td>
+                  <td className="px-6 py-4 text-xs text-zinc-500">{writer.email_address || writer.email}</td>
                   <td className="px-6 py-4 text-xs text-zinc-500">{writer.invited_by_user?.full_name || 'System'}</td>
                   <td className="px-6 py-4 text-xs text-zinc-400">{new Date(writer.created_at).toLocaleDateString()}</td>
                 </tr>
