@@ -45,7 +45,7 @@ export function Sidebar() {
           <NavItem href="/users" icon={<Users size={14} />} label={isSuperAdmin ? "Admin Management" : "Users"} active={pathname === "/users"} />
           <NavItem href="/authors" icon={<BookOpen size={14} />} label="Authors" active={pathname === "/authors"} />
           <NavSection title="Content" />
-          <NavItem href="/books" icon={<Library size={14} />} label="Books" active={pathname === "/books"} />
+          <NavItem href="/books" icon={<Library size={14} />} label="Content" active={pathname === "/books"} />
           {isSuperAdmin && (
             <>
               <NavSection title="Founding Writers" />
@@ -54,7 +54,6 @@ export function Sidebar() {
               <NavItem href="/founding-writers/invite" icon={<FileText size={14} />} label="Invite Founder" active={pathname === "/founding-writers/invite"} />
             </>
           )}
-          <NavItem href="/applications" icon={<FileCheck size={14} />} label="Applications" active={pathname === "/applications"} />
           <NavSection title="Management" />
           <NavItem href="/moderation" icon={<ShieldAlert size={14} />} label="Moderation" active={pathname === "/moderation"} />
           <NavItem href="/reports" icon={<FileText size={14} />} label="Reports" active={pathname === "/reports"} />
@@ -64,7 +63,10 @@ export function Sidebar() {
           <NavItem href="/support" icon={<LifeBuoy size={14} />} label="Support" active={pathname === "/support"} />
           <NavItem href="/payments" icon={<CreditCard size={14} />} label="Payments" active={pathname === "/payments"} />
           {isSuperAdmin && (
-            <NavItem href="/settings" icon={<Settings size={14} />} label="Settings" active={pathname === "/settings"} />
+            <>
+              <NavItem href="/maintenance" icon={<Activity size={14} />} label="Maintenance" active={pathname === "/maintenance"} />
+              <NavItem href="/settings" icon={<Settings size={14} />} label="Settings" active={pathname === "/settings"} />
+            </>
           )}
           <NavItem href="/activity" icon={<Activity size={14} />} label="Activity Logs" active={pathname === "/activity"} />
         </ul>
