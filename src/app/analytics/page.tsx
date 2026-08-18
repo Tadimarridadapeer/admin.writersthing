@@ -152,7 +152,7 @@ export default function AnalyticsPage() {
                     outerRadius={100}
                     paddingAngle={2}
                     dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                     labelLine={true}
                   >
                     {data.contentBreakdown.map((entry: any, index: number) => (
