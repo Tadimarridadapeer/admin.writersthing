@@ -29,7 +29,7 @@ export default function PaymentsPage() {
 
         // Map users for easy lookup
         const userMap: Record<string, any> = {};
-        usersRes.data?.forEach(u => {
+        usersRes.data?.forEach((u: any) => {
           userMap[u.id] = u;
         });
 
