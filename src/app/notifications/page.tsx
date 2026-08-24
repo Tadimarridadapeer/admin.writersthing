@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { supabase } from "@/lib/supabase";
+
 export default function NotificationsPage() {
   const [targetType, setTargetType] = useState<"all" | "selected">("all");
   const [emailInput, setEmailInput] = useState("");
@@ -17,8 +19,9 @@ export default function NotificationsPage() {
     setStatus(null);
 
     try {
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("No token found. Please log in.");
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("No active session found. Please log in again.");
 
       let emails: string[] = [];
       if (targetType === "selected") {
