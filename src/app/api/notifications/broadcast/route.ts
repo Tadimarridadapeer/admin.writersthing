@@ -55,11 +55,15 @@ export async function POST(req: NextRequest) {
       if (!emails || !Array.isArray(emails) || emails.length === 0) {
         return NextResponse.json({ error: "Emails are required for selected users" }, { status: 400 });
       }
-      // Get specific users by email
+      
+      // Get specific users by email (case-insensitive)
+      const validEmails = emails.map(e => e.trim()).filter(Boolean);
+      const orQuery = validEmails.map(e => `email.ilike.${e}`).join(',');
+      
       const { data: specificUsers, error: specificUsersError } = await supabase
         .from("users")
         .select("id, email")
-        .in("email", emails.map(e => e.toLowerCase()));
+        .or(orQuery);
 
       if (specificUsersError || !specificUsers) {
         throw new Error("Failed to fetch specific users");
@@ -73,13 +77,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid target type" }, { status: 400 });
     }
 
+    const broadcastId = crypto.randomUUID ? crypto.randomUUID() : `broadcast_${Date.now()}`;
+
     // Insert a notification for every matched user
     const notifications = targetUserIds.map(id => ({
       user_id: id,
       actor_id: user.id, // Admin sending it
       type: "system_message",
       target_type: "broadcast",
-      target_id: "broadcast",
+      target_id: broadcastId,
       is_read: false,
       metadata: { text: message }
     }));
@@ -88,13 +94,18 @@ export async function POST(req: NextRequest) {
     const chunkSize = 500;
     for (let i = 0; i < notifications.length; i += chunkSize) {
       const chunk = notifications.slice(i, i + chunkSize);
-      const { error: insertError } = await supabase
+      const { data, error: insertError } = await supabase
         .from("notifications")
-        .insert(chunk);
+        .insert(chunk)
+        .select("id");
       
       if (insertError) {
         console.error("Batch insert error:", insertError);
-        throw new Error("Failed to insert some notifications");
+        throw new Error("Failed to insert some notifications: " + insertError.message);
+      }
+      
+      if (!data || data.length !== chunk.length) {
+        throw new Error("Database insert failed silently (possibly RLS or trigger rejection).");
       }
     }
 

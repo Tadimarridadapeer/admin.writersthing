@@ -1,50 +1,64 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { DollarSign, CheckCircle2, XCircle, AlertCircle, Clock } from "lucide-react";
+import { DollarSign, CheckCircle2, XCircle, AlertCircle, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 
 export default function PaymentsPage() {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [purchases, setPurchases] = useState<any[]>([]);
+  const [authorEarnings, setAuthorEarnings] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [books, setBooks] = useState<Record<string, any>>({});
   const [users, setUsers] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"orders" | "withdrawals">("orders");
+  const [activeTab, setActiveTab] = useState<"payments" | "withdrawals">("payments");
+  const [expandedPaymentId, setExpandedPaymentId] = useState<string | null>(null);
+
+  const fetchPaymentsData = async () => {
+    try {
+      const res = await fetch("/api/payments");
+      if (!res.ok) throw new Error("Failed to fetch payments data");
+      const data = await res.json();
+
+      const userMap: Record<string, any> = {};
+      (data.users || []).forEach((u: any) => { userMap[u.id] = u; });
+
+      const bookMap: Record<string, any> = {};
+      (data.books || []).forEach((b: any) => { bookMap[b.id] = b; });
+
+      setPayments(data.payments || []);
+      setPurchases(data.purchases || []);
+      setAuthorEarnings(data.authorEarnings || []);
+      setWithdrawals(data.withdrawals || []);
+      setUsers(userMap);
+      setBooks(bookMap);
+    } catch (err: any) {
+      console.error("Failed to fetch payments data:", err);
+      setErrorMsg(err.message || "An unexpected error occurred while fetching payments.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchPaymentsData = async () => {
-      try {
-        // Fetch all data in parallel
-        const [ordersRes, withdrawalsRes, usersRes] = await Promise.all([
-          supabase.from("orders").select("*").order("created_at", { ascending: false }),
-          supabase.from("withdrawals").select("*").order("created_at", { ascending: false }),
-          supabase.from("users").select("id, name, email")
-        ]);
-
-        if (ordersRes.error) throw new Error(`Orders Error: ${ordersRes.error.message || JSON.stringify(ordersRes.error)}`);
-        if (withdrawalsRes.error) throw new Error(`Withdrawals Error: ${withdrawalsRes.error.message || JSON.stringify(withdrawalsRes.error)}`);
-        if (usersRes.error) throw new Error(`Users Error: ${usersRes.error.message || JSON.stringify(usersRes.error)}`);
-
-        // Map users for easy lookup
-        const userMap: Record<string, any> = {};
-        usersRes.data?.forEach((u: any) => {
-          userMap[u.id] = u;
-        });
-
-        setOrders(ordersRes.data || []);
-        setWithdrawals(withdrawalsRes.data || []);
-        setUsers(userMap);
-      } catch (err: any) {
-        console.error("Failed to fetch payments data:", err);
-        setErrorMsg(err.message || "An unexpected error occurred while fetching payments.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchPaymentsData();
+
+    const channel = supabase
+      .channel('operations_payments_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
+        fetchPaymentsData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawals' }, () => {
+        fetchPaymentsData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   if (loading) {
@@ -63,22 +77,15 @@ export default function PaymentsPage() {
         </div>
         <div className="text-center">
           <h2 className="text-lg font-semibold text-zinc-900">Database Error</h2>
-          <p className="text-sm text-zinc-500 mt-1 max-w-md">
-            {errorMsg}
-          </p>
-          <div className="mt-4 p-4 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-600 text-left max-w-lg">
-            <p className="font-medium text-zinc-900 mb-2">Missing Tables?</p>
-            <p>If the error mentions that a relation (like <code>withdrawals</code> or <code>orders</code>) does not exist, it means the corresponding SQL schema script hasn't been executed in your Supabase SQL editor yet. Please locate and run <code>supabase_withdrawals.sql</code> or similar scripts.</p>
-          </div>
+          <p className="text-sm text-zinc-500 mt-1 max-w-md">{errorMsg}</p>
         </div>
       </div>
     );
   }
 
-  // Calculate Metrics
-  const totalRevenue = orders.filter(o => o.status === 'Success').reduce((sum, o) => sum + Number(o.amount), 0);
-  const successfulPayments = orders.filter(o => o.status === 'Success').length;
-  const failedPayments = orders.filter(o => o.status === 'Failed').length;
+  const totalRevenue = payments.filter(p => p.status === 'SUCCESS').reduce((sum, p) => sum + Number(p.amount), 0);
+  const successfulPayments = payments.filter(p => p.status === 'SUCCESS').length;
+  const failedPayments = payments.filter(p => p.status === 'FAILED').length;
   const pendingWithdrawals = withdrawals.filter(w => w.status === 'Pending').length;
 
   return (
@@ -88,25 +95,24 @@ export default function PaymentsPage() {
         <p className="text-sm text-zinc-500 mt-1">Manage incoming user payments and outgoing author withdrawals.</p>
       </div>
 
-      {/* Top Metrics Cards */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
-          title="Total Revenue"
+          title="Total Processed"
           value={`₹${totalRevenue.toLocaleString()}`}
           icon={<DollarSign className="h-5 w-5 text-emerald-500" />}
-          description="From successful orders"
+          description="From successful payments"
         />
         <MetricCard
           title="Successful Payments"
           value={successfulPayments.toString()}
           icon={<CheckCircle2 className="h-5 w-5 text-blue-500" />}
-          description="Completed orders"
+          description="Completed payments"
         />
         <MetricCard
           title="Failed Payments"
           value={failedPayments.toString()}
           icon={<XCircle className="h-5 w-5 text-red-500" />}
-          description="Failed or cancelled orders"
+          description="Failed or cancelled"
         />
         <MetricCard
           title="Pending Withdrawals"
@@ -116,25 +122,20 @@ export default function PaymentsPage() {
         />
       </div>
 
-      {/* Tabs */}
       <div className="border-b border-zinc-200">
         <nav className="-mb-px flex space-x-8">
           <button
-            onClick={() => setActiveTab("orders")}
+            onClick={() => setActiveTab("payments")}
             className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
-              activeTab === "orders"
-                ? "border-zinc-900 text-zinc-900"
-                : "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700"
+              activeTab === "payments" ? "border-zinc-900 text-zinc-900" : "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700"
             }`}
           >
-            Incoming Orders
+            Payments
           </button>
           <button
             onClick={() => setActiveTab("withdrawals")}
             className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
-              activeTab === "withdrawals"
-                ? "border-zinc-900 text-zinc-900"
-                : "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700"
+              activeTab === "withdrawals" ? "border-zinc-900 text-zinc-900" : "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700"
             }`}
           >
             Withdrawal Requests
@@ -147,57 +148,101 @@ export default function PaymentsPage() {
         </nav>
       </div>
 
-      {/* Tables Content */}
       <div className="rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
-        {activeTab === "orders" ? (
+        {activeTab === "payments" ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-zinc-50 text-zinc-500 border-b border-zinc-200">
                 <tr>
-                  <th className="px-6 py-4 font-medium">Order ID / Date</th>
-                  <th className="px-6 py-4 font-medium">User</th>
-                  <th className="px-6 py-4 font-medium">Amount</th>
+                  <th className="px-6 py-4 font-medium">Txn ID / Date</th>
+                  <th className="px-6 py-4 font-medium">Buyer</th>
+                  <th className="px-6 py-4 font-medium">Paid</th>
+                  <th className="px-6 py-4 font-medium">Platform Fee</th>
                   <th className="px-6 py-4 font-medium">Status</th>
-                  <th className="px-6 py-4 font-medium">Gateway ID</th>
+                  <th className="px-6 py-4 font-medium"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200">
-                {orders.length > 0 ? (
-                  orders.map((order) => {
-                    const user = users[order.user_id];
+                {payments.length > 0 ? (
+                  payments.map((payment) => {
+                    const buyer = users[payment.user_id];
+                    const paymentPurchases = purchases.filter(p => p.payment_id === payment.id);
+                    const isExpanded = expandedPaymentId === payment.id;
+                    
                     return (
-                      <tr key={order.id} className="hover:bg-zinc-50/50">
-                        <td className="px-6 py-4">
-                          <div className="font-medium text-zinc-900">{order.id.split('-')[0]}...</div>
-                          <div className="text-zinc-500 text-xs mt-1">{format(new Date(order.created_at), 'PPp')}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          {user ? (
-                            <div>
-                              <div className="font-medium text-zinc-900">{user.name}</div>
-                              <div className="text-zinc-500 text-xs">{user.email}</div>
-                            </div>
-                          ) : (
-                            <span className="text-zinc-500 italic">Unknown User</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 font-medium text-zinc-900">
-                          ₹{Number(order.amount).toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4">
-                          <StatusBadge status={order.status} />
-                        </td>
-                        <td className="px-6 py-4 text-xs text-zinc-500 font-mono">
-                          {order.razorpay_order_id}
-                        </td>
-                      </tr>
+                      <React.Fragment key={payment.id}>
+                        <tr className="hover:bg-zinc-50/50 cursor-pointer" onClick={() => setExpandedPaymentId(isExpanded ? null : payment.id)}>
+                          <td className="px-6 py-4">
+                            <div className="font-mono text-zinc-900">{payment.id.split('-')[0]}...</div>
+                            <div className="text-zinc-500 text-xs mt-1">{format(new Date(payment.created_at), 'PPp')}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            {buyer ? (
+                              <div>
+                                <div className="font-medium text-zinc-900">{buyer.name}</div>
+                                <div className="text-zinc-500 text-xs">{buyer.email}</div>
+                              </div>
+                            ) : (
+                              <span className="text-zinc-500 italic">Unknown User</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 font-medium text-zinc-900">₹{Number(payment.amount).toFixed(2)}</td>
+                          <td className="px-6 py-4 font-medium text-emerald-600">₹{Number(payment.commission_amount || 0).toFixed(2)}</td>
+                          <td className="px-6 py-4"><StatusBadge status={payment.status} /></td>
+                          <td className="px-6 py-4 text-right">
+                            {isExpanded ? <ChevronUp className="h-4 w-4 text-zinc-400 inline" /> : <ChevronDown className="h-4 w-4 text-zinc-400 inline" />}
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr className="bg-zinc-50/50 border-t-0">
+                            <td colSpan={6} className="px-6 py-4">
+                              <div className="text-xs text-zinc-700 bg-white p-4 rounded border border-zinc-200">
+                                <div className="grid grid-cols-2 gap-4 mb-4">
+                                  <div><span className="font-semibold text-zinc-500">Order ID:</span> <span className="font-mono">{payment.order_id}</span></div>
+                                  <div><span className="font-semibold text-zinc-500">Gateway Txn ID:</span> <span className="font-mono">{payment.payment_id}</span></div>
+                                </div>
+                                <h4 className="font-bold mb-2">Purchased Items & Earnings</h4>
+                                <table className="w-full border text-left">
+                                  <thead className="bg-zinc-100 text-zinc-500">
+                                    <tr>
+                                      <th className="px-3 py-2 font-medium">Book</th>
+                                      <th className="px-3 py-2 font-medium">Author</th>
+                                      <th className="px-3 py-2 font-medium">Gross</th>
+                                      <th className="px-3 py-2 font-medium">Author Net</th>
+                                      <th className="px-3 py-2 font-medium">Payout Status</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {paymentPurchases.map(purchase => {
+                                      const earning = authorEarnings.find(e => e.purchase_id === purchase.id);
+                                      const author = earning ? users[earning.author_id] : null;
+                                      const bookTitle = books[purchase.book_id]?.title || 'Unknown Book';
+                                      
+                                      return (
+                                        <tr key={purchase.id} className="border-t border-zinc-100">
+                                          <td className="px-3 py-2">{bookTitle}</td>
+                                          <td className="px-3 py-2">{author ? author.name : 'Unknown'}</td>
+                                          <td className="px-3 py-2">₹{Number(purchase.amount).toFixed(2)}</td>
+                                          <td className="px-3 py-2 text-blue-600">₹{earning ? Number(earning.net_amount).toFixed(2) : '0.00'}</td>
+                                          <td className="px-3 py-2"><StatusBadge status={payment.payout_status || 'NOT_RELEASED'} /></td>
+                                        </tr>
+                                      );
+                                    })}
+                                    {paymentPurchases.length === 0 && (
+                                      <tr><td colSpan={5} className="px-3 py-2 text-center text-zinc-400">No items found for this payment.</td></tr>
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-zinc-500">
-                      No incoming orders found.
-                    </td>
+                    <td colSpan={6} className="px-6 py-12 text-center text-zinc-500">No payments found.</td>
                   </tr>
                 )}
               </tbody>
@@ -285,11 +330,17 @@ function MetricCard({ title, value, icon, description }: { title: string; value:
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
+    SUCCESS: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
     Success: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
     Completed: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
     Pending: "bg-orange-50 text-orange-700 ring-orange-600/20",
+    PENDING: "bg-orange-50 text-orange-700 ring-orange-600/20",
     Failed: "bg-red-50 text-red-700 ring-red-600/10",
+    FAILED: "bg-red-50 text-red-700 ring-red-600/10",
     Rejected: "bg-red-50 text-red-700 ring-red-600/10",
+    NOT_RELEASED: "bg-zinc-50 text-zinc-600 ring-zinc-500/10",
+    READY: "bg-blue-50 text-blue-700 ring-blue-600/20",
+    TRANSFERRED: "bg-emerald-50 text-emerald-700 ring-emerald-600/20"
   };
 
   const style = styles[status] || "bg-zinc-50 text-zinc-600 ring-zinc-500/10";
