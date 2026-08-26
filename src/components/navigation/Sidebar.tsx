@@ -42,7 +42,10 @@ export function Sidebar() {
         <ul className="space-y-1 px-3">
           <NavItem href="/" icon={<LayoutDashboard size={14} />} label="Dashboard" active={pathname === "/"} />
           <NavSection title="Community" />
-          <NavItem href="/users" icon={<Users size={14} />} label={isSuperAdmin ? "Admin Management" : "Users"} active={pathname === "/users"} />
+          <NavItem href="/users" icon={<Users size={14} />} label="Users" active={pathname === "/users"} />
+          {isSuperAdmin && (
+            <NavItem href="/admins" icon={<ShieldAlert size={14} />} label="Admin Management" active={pathname === "/admins"} />
+          )}
           <NavItem href="/authors" icon={<BookOpen size={14} />} label="Authors" active={pathname === "/authors"} />
           <NavSection title="Content" />
           <NavItem href="/books" icon={<Library size={14} />} label="Content" active={pathname === "/books"} />
