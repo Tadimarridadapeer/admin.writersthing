@@ -23,13 +23,13 @@ export default function ReportsPage() {
         let query;
         switch (activeReport) {
           case "sales":
-            query = supabase.from("orders").select("id, amount, status, created_at, razorpay_order_id").order("created_at", { ascending: false }).limit(10);
+            query = supabase.from("payments").select("id, amount, status, created_at, payment_id").order("created_at", { ascending: false }).limit(10);
             break;
           case "payouts":
             query = supabase.from("withdrawals").select("id, amount, status, upi_id, created_at").order("created_at", { ascending: false }).limit(10);
             break;
           case "users":
-            query = supabase.from("users").select("id, name, email, role, created_at").order("created_at", { ascending: false }).limit(10);
+            query = supabase.from("users").select("id, name, email, is_verified_writer, onboarding_completed, created_at").order("created_at", { ascending: false }).limit(10);
             break;
           case "content":
             query = supabase.from("books").select("id, title, status, price, sales_count, created_at").order("created_at", { ascending: false }).limit(10);
@@ -58,13 +58,13 @@ export default function ReportsPage() {
       let query;
       switch (activeReport) {
         case "sales":
-          query = supabase.from("orders").select("id, user_id, book_id, amount, status, razorpay_order_id, created_at").order("created_at", { ascending: false });
+          query = supabase.from("payments").select("id, user_id, project_id, amount, status, payment_id, created_at").order("created_at", { ascending: false });
           break;
         case "payouts":
           query = supabase.from("withdrawals").select("id, author_id, amount, status, upi_id, failure_reason, created_at").order("created_at", { ascending: false });
           break;
         case "users":
-          query = supabase.from("users").select("id, name, email, role, age, created_at").order("created_at", { ascending: false });
+          query = supabase.from("users").select("id, name, email, is_verified_writer, onboarding_completed, created_at").order("created_at", { ascending: false });
           break;
         case "content":
           query = supabase.from("books").select("id, author_id, title, category, price, status, sales_count, created_at").order("created_at", { ascending: false });

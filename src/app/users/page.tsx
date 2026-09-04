@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { format } from "date-fns";
-import { 
+import {
   Users, 
   UserPlus, 
   Activity, 
@@ -16,6 +16,21 @@ import {
   MoreVertical,
   X
 } from "lucide-react";
+
+function formatSafeDate(dateString: string | null | undefined): string {
+  if (!dateString) return "Never";
+  try {
+    let normalized = dateString;
+    if (!normalized.endsWith('Z') && !normalized.match(/[+-]\d{2}:?\d{2}$/)) {
+      normalized = normalized + 'Z';
+    }
+    const date = new Date(normalized);
+    if (isNaN(date.getTime())) return "Unknown Date";
+    return format(date, "dd MMM yyyy, hh:mm a");
+  } catch (err) {
+    return "Invalid Date";
+  }
+}
 
 interface PublicUser {
   id: string;
@@ -86,29 +101,57 @@ export default function PublicUsersPage() {
     let result = [...users];
     
     // Apply Registration Date Filter
-    if (dateFilter === "today") {
-      const today = new Date().toISOString().split('T')[0];
-      result = result.filter(u => u.joinedAt.startsWith(today));
-    } else if (dateFilter === "week") {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      result = result.filter(u => new Date(u.joinedAt) >= weekAgo);
-    } else if (dateFilter === "month") {
-      const monthAgo = new Date();
-      monthAgo.setDate(monthAgo.getDate() - 30);
-      result = result.filter(u => new Date(u.joinedAt) >= monthAgo);
+    if (dateFilter !== "all") {
+      const now = new Date();
+      result = result.filter(u => {
+        if (!u.joinedAt) return false;
+        let normJoined = u.joinedAt;
+        if (!normJoined.endsWith('Z') && !normJoined.match(/[+-]\d{2}:?\d{2}$/)) {
+          normJoined += 'Z';
+        }
+        const joined = new Date(normJoined);
+        if (isNaN(joined.getTime())) return false;
+        
+        if (dateFilter === "today") {
+          return joined.toDateString() === now.toDateString();
+        } else if (dateFilter === "week") {
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          return joined >= weekAgo;
+        } else if (dateFilter === "month") {
+          const monthAgo = new Date();
+          monthAgo.setDate(monthAgo.getDate() - 30);
+          return joined >= monthAgo;
+        }
+        return true;
+      });
     }
 
     // Apply Login Date Filter
-    if (loginFilter === "today") {
-      const today = new Date().toISOString().split('T')[0];
-      result = result.filter(u => u.lastLoginAt?.startsWith(today));
-    } else if (loginFilter === "week") {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      result = result.filter(u => u.lastLoginAt && new Date(u.lastLoginAt) >= weekAgo);
-    } else if (loginFilter === "never") {
-      result = result.filter(u => !u.lastLoginAt);
+    if (loginFilter !== "all") {
+      const now = new Date();
+      result = result.filter(u => {
+        if (loginFilter === "never") {
+          return !u.lastLoginAt;
+        }
+        
+        if (!u.lastLoginAt) return false;
+        let normLogin = u.lastLoginAt;
+        if (!normLogin.endsWith('Z') && !normLogin.match(/[+-]\d{2}:?\d{2}$/)) {
+          normLogin += 'Z';
+        }
+        const lastLogin = new Date(normLogin);
+        if (isNaN(lastLogin.getTime())) return false;
+        
+        if (loginFilter === "today") {
+          return lastLogin.toDateString() === now.toDateString();
+        } else if (loginFilter === "week") {
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          return lastLogin >= weekAgo;
+        }
+        return true;
+      });
     }
 
     return result;
@@ -252,11 +295,11 @@ export default function PublicUsersPage() {
                         {user.role}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-xs text-zinc-600">
-                      {format(new Date(user.joinedAt), "dd MMM yyyy, hh:mm a")}
+                    <td className="px-6 py-4 text-xs text-zinc-600 whitespace-nowrap">
+                      {formatSafeDate(user.joinedAt)}
                     </td>
-                    <td className="px-6 py-4 text-xs text-zinc-600">
-                      {user.lastLoginAt ? format(new Date(user.lastLoginAt), "dd MMM yyyy, hh:mm a") : "Never"}
+                    <td className="px-6 py-4 text-xs text-zinc-600 whitespace-nowrap">
+                      {formatSafeDate(user.lastLoginAt)}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest ${
@@ -323,13 +366,13 @@ export default function PublicUsersPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-100">
                   <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">Joined Date</div>
-                  <div className="text-sm font-medium text-zinc-900">{format(new Date(selectedUser.joinedAt), "dd MMM yyyy")}</div>
-                  <div className="text-xs text-zinc-500">{format(new Date(selectedUser.joinedAt), "hh:mm a")}</div>
+                  <div className="text-sm font-medium text-zinc-900">{formatSafeDate(selectedUser.joinedAt).split(',')[0]}</div>
+                  <div className="text-xs text-zinc-500">{formatSafeDate(selectedUser.joinedAt).split(',')[1]?.trim() || ''}</div>
                 </div>
                 <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-100">
                   <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">Last Login</div>
-                  <div className="text-sm font-medium text-zinc-900">{selectedUser.lastLoginAt ? format(new Date(selectedUser.lastLoginAt), "dd MMM yyyy") : "Never"}</div>
-                  <div className="text-xs text-zinc-500">{selectedUser.lastLoginAt ? format(new Date(selectedUser.lastLoginAt), "hh:mm a") : "-"}</div>
+                  <div className="text-sm font-medium text-zinc-900">{formatSafeDate(selectedUser.lastLoginAt).split(',')[0]}</div>
+                  <div className="text-xs text-zinc-500">{formatSafeDate(selectedUser.lastLoginAt).split(',')[1]?.trim() || ''}</div>
                 </div>
               </div>
 

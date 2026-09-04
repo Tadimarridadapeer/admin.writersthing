@@ -15,44 +15,28 @@ export async function GET() {
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
     const [
-      paymentsRes,
-      withdrawalsRes,
+      failedPaymentsRes,
+      failedWithdrawalsRes,
       usersRes,
       booksRes,
       authorsRes
     ] = await Promise.all([
-      supabaseAdmin.from("payments").select("*").order("created_at", { ascending: false }),
-      supabaseAdmin.from("withdrawals").select("*").order("created_at", { ascending: false }),
+      supabaseAdmin.from("payments").select("*").in("status", ["FAILED", "PENDING"]).order("created_at", { ascending: false }),
+      supabaseAdmin.from("withdrawals").select("*").eq("status", "Failed").order("created_at", { ascending: false }),
       supabaseAdmin.from("users").select("id, name, email, active_upi_id"),
       supabaseAdmin.from("books").select("id, title, author_id, upi_id"),
       supabaseAdmin.from("authors").select("id, user_id, upi_id")
     ]);
 
-    // Try to fetch purchases and author_earnings (they may not exist yet)
-    let purchasesData: any[] = [];
-    let earningsData: any[] = [];
-
-    try {
-      const purchasesRes = await supabaseAdmin.from("purchases").select("*");
-      if (!purchasesRes.error) purchasesData = purchasesRes.data || [];
-    } catch (e) { /* table may not exist */ }
-
-    try {
-      const earningsRes = await supabaseAdmin.from("author_earnings").select("*");
-      if (!earningsRes.error) earningsData = earningsRes.data || [];
-    } catch (e) { /* table may not exist */ }
-
     return NextResponse.json({
-      payments: paymentsRes.data || [],
-      purchases: purchasesData,
-      authorEarnings: earningsData,
-      withdrawals: withdrawalsRes.data || [],
+      failedPayments: failedPaymentsRes.data || [],
+      failedWithdrawals: failedWithdrawalsRes.data || [],
       users: usersRes.data || [],
       books: booksRes.data || [],
       authors: authorsRes.data || [],
     });
   } catch (error: any) {
-    console.error("Payments API Error:", error);
+    console.error("Support API Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

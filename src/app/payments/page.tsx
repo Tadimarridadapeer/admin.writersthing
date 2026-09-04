@@ -12,6 +12,7 @@ export default function PaymentsPage() {
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [books, setBooks] = useState<Record<string, any>>({});
   const [users, setUsers] = useState<Record<string, any>>({});
+  const [authors, setAuthors] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"payments" | "withdrawals">("payments");
@@ -28,6 +29,9 @@ export default function PaymentsPage() {
 
       const bookMap: Record<string, any> = {};
       (data.books || []).forEach((b: any) => { bookMap[b.id] = b; });
+      
+      const authorMap: Record<string, any> = {};
+      (data.authors || []).forEach((a: any) => { authorMap[a.id] = a; });
 
       setPayments(data.payments || []);
       setPurchases(data.purchases || []);
@@ -35,6 +39,7 @@ export default function PaymentsPage() {
       setWithdrawals(data.withdrawals || []);
       setUsers(userMap);
       setBooks(bookMap);
+      setAuthors(authorMap);
     } catch (err: any) {
       console.error("Failed to fetch payments data:", err);
       setErrorMsg(err.message || "An unexpected error occurred while fetching payments.");
@@ -83,7 +88,9 @@ export default function PaymentsPage() {
     );
   }
 
-  const totalRevenue = payments.filter(p => p.status === 'SUCCESS').reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalProcessed = payments.filter(p => p.status === 'SUCCESS').reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalRevenue = payments.filter(p => p.status === 'SUCCESS').reduce((sum, p) => sum + Number(p.commission_amount || 0), 0);
+  const totalExpenses = payments.filter(p => p.status === 'SUCCESS').reduce((sum, p) => sum + Number(p.writer_amount || 0), 0);
   const successfulPayments = payments.filter(p => p.status === 'SUCCESS').length;
   const failedPayments = payments.filter(p => p.status === 'FAILED').length;
   const pendingWithdrawals = withdrawals.filter(w => w.status === 'Pending').length;
@@ -92,33 +99,39 @@ export default function PaymentsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Payments & Payouts</h1>
-        <p className="text-sm text-zinc-500 mt-1">Manage incoming user payments and outgoing author withdrawals.</p>
+        <p className="text-sm text-zinc-500 mt-1">Manage incoming user payments and track expenses for outgoing author withdrawals.</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <MetricCard
           title="Total Processed"
-          value={`₹${totalRevenue.toLocaleString()}`}
-          icon={<DollarSign className="h-5 w-5 text-emerald-500" />}
-          description="From successful payments"
+          value={`₹${totalProcessed.toLocaleString()}`}
+          icon={<DollarSign className="h-5 w-5 text-blue-500" />}
+          description="Gross amount processed"
         />
         <MetricCard
-          title="Successful Payments"
-          value={successfulPayments.toString()}
-          icon={<CheckCircle2 className="h-5 w-5 text-blue-500" />}
-          description="Completed payments"
+          title="Total Revenue"
+          value={`₹${totalRevenue.toLocaleString()}`}
+          icon={<CheckCircle2 className="h-5 w-5 text-emerald-500" />}
+          description="Platform commissions"
+        />
+        <MetricCard
+          title="Total Expenses"
+          value={`₹${totalExpenses.toLocaleString()}`}
+          icon={<AlertCircle className="h-5 w-5 text-orange-500" />}
+          description="Author earnings/payouts"
+        />
+        <MetricCard
+          title="Pending Withdrawals"
+          value={pendingWithdrawals.toString()}
+          icon={<Clock className="h-5 w-5 text-yellow-500" />}
+          description="Author payouts needing action"
         />
         <MetricCard
           title="Failed Payments"
           value={failedPayments.toString()}
           icon={<XCircle className="h-5 w-5 text-red-500" />}
           description="Failed or cancelled"
-        />
-        <MetricCard
-          title="Pending Withdrawals"
-          value={pendingWithdrawals.toString()}
-          icon={<Clock className="h-5 w-5 text-orange-500" />}
-          description="Author payouts needing action"
         />
       </div>
 
@@ -207,6 +220,7 @@ export default function PaymentsPage() {
                                     <tr>
                                       <th className="px-3 py-2 font-medium">Book</th>
                                       <th className="px-3 py-2 font-medium">Author</th>
+                                      <th className="px-3 py-2 font-medium">Contact & UPI</th>
                                       <th className="px-3 py-2 font-medium">Gross</th>
                                       <th className="px-3 py-2 font-medium">Author Net</th>
                                       <th className="px-3 py-2 font-medium">Payout Status</th>
@@ -215,13 +229,26 @@ export default function PaymentsPage() {
                                   <tbody>
                                     {paymentPurchases.map(purchase => {
                                       const earning = authorEarnings.find(e => e.purchase_id === purchase.id);
-                                      const author = earning ? users[earning.author_id] : null;
-                                      const bookTitle = books[purchase.book_id]?.title || 'Unknown Book';
+                                      const authorUser = earning ? users[earning.author_id] : null;
+                                      
+                                      const book = books[purchase.book_id];
+                                      const bookTitle = book?.title || 'Unknown Book';
+                                      
+                                      const authorProfile = book ? authors[book.author_id] : null;
+                                      const upiId = book?.upi_id || authorProfile?.upi_id || authorUser?.active_upi_id || 'Not Provided';
                                       
                                       return (
                                         <tr key={purchase.id} className="border-t border-zinc-100">
                                           <td className="px-3 py-2">{bookTitle}</td>
-                                          <td className="px-3 py-2">{author ? author.name : 'Unknown'}</td>
+                                          <td className="px-3 py-2">{authorUser ? authorUser.name : 'Unknown'}</td>
+                                          <td className="px-3 py-2">
+                                            {authorUser && (
+                                              <div className="flex flex-col gap-0.5">
+                                                <span className="text-xs text-zinc-600">{authorUser.email}</span>
+                                                <span className="text-xs font-mono bg-zinc-100 px-1 py-0.5 rounded w-fit text-zinc-500">{upiId}</span>
+                                              </div>
+                                            )}
+                                          </td>
                                           <td className="px-3 py-2">₹{Number(purchase.amount).toFixed(2)}</td>
                                           <td className="px-3 py-2 text-blue-600">₹{earning ? Number(earning.net_amount).toFixed(2) : '0.00'}</td>
                                           <td className="px-3 py-2"><StatusBadge status={payment.payout_status || 'NOT_RELEASED'} /></td>
@@ -229,7 +256,9 @@ export default function PaymentsPage() {
                                       );
                                     })}
                                     {paymentPurchases.length === 0 && (
-                                      <tr><td colSpan={5} className="px-3 py-2 text-center text-zinc-400">No items found for this payment.</td></tr>
+                                      <tr><td colSpan={6} className="px-3 py-2 text-center text-zinc-400">
+                                        {payment.project_id ? `Payment for Project/Book ID: ${payment.project_id}` : 'No items found for this payment.'}
+                                      </td></tr>
                                     )}
                                   </tbody>
                                 </table>
