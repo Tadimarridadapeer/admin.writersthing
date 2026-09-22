@@ -15,6 +15,13 @@ const getSupabaseClient = () => {
       const mock: any = new Proxy({} as any, {
         get(target, prop) {
           if (prop === "then") return undefined;
+          if (prop === "auth") {
+            return {
+              getSession: async () => ({ data: { session: null }, error: null }),
+              onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+              signOut: async () => ({ error: null })
+            };
+          }
           return () => mock;
         }
       });

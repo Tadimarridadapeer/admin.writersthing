@@ -47,6 +47,7 @@ interface UserStats {
   newUsersToday: number;
   newUsersThisWeek: number;
   loginsToday: number;
+  activeUsers: number;
 }
 
 export default function PublicUsersPage() {
@@ -59,6 +60,7 @@ export default function PublicUsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
   const [loginFilter, setLoginFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -154,8 +156,19 @@ export default function PublicUsersPage() {
       });
     }
 
+    if (statusFilter !== "all") {
+      if (statusFilter === "active") {
+        result = result.filter(u => u.status === "active");
+      } else if (statusFilter === "offline") {
+        result = result.filter(u => u.status === "offline");
+      } else if (statusFilter === "incomplete") {
+        // Just an approximation for incomplete onboarding (e.g. no bio or role set if we had those, but we will use something basic here)
+        result = result.filter(u => u.role === "User" && !u.lastLoginAt);
+      }
+    }
+
     return result;
-  }, [users, dateFilter, loginFilter]);
+  }, [users, dateFilter, loginFilter, statusFilter]);
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
@@ -201,12 +214,20 @@ export default function PublicUsersPage() {
           icon={<Activity size={20} className="text-purple-600" />} 
           loading={isStatsLoading} 
         />
-        <StatCard 
-          title="Logins Today" 
-          value={stats?.loginsToday} 
-          icon={<LogIn size={20} className="text-amber-600" />} 
-          loading={isStatsLoading} 
-        />
+        <div 
+          onClick={() => {
+            setStatusFilter(prev => prev === "active" ? "all" : "active");
+            setCurrentPage(1);
+          }}
+          className={`cursor-pointer transition-all ${statusFilter === "active" ? "ring-2 ring-black" : ""}`}
+        >
+          <StatCard 
+            title="Active Users (24h)" 
+            value={stats?.activeUsers} 
+            icon={<LogIn size={20} className="text-amber-600" />} 
+            loading={isStatsLoading} 
+          />
+        </div>
       </div>
 
       {/* Filters and Search */}
@@ -249,6 +270,19 @@ export default function PublicUsersPage() {
               <option value="never">Login: Never</option>
             </select>
           </div>
+
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <select 
+              value={statusFilter} 
+              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+              className="flex-1 md:w-36 px-2 py-2 border border-zinc-200 rounded-md text-xs bg-white text-zinc-700 uppercase font-bold tracking-wider"
+            >
+              <option value="all">Status: All</option>
+              <option value="active">Status: Active</option>
+              <option value="offline">Status: Offline</option>
+              <option value="incomplete">Status: Not Onboarded</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -261,22 +295,23 @@ export default function PublicUsersPage() {
                 <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">Name</th>
                 <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">Email</th>
                 <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">Role</th>
-                <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">Joined</th>
-                <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">Last Login</th>
-                <th className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Joined</th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Last Login</th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Last Read</th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-50">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center">
+                  <td colSpan={7} className="py-12 text-center">
                     <Loader2 size={24} className="animate-spin mx-auto text-zinc-300" />
                   </td>
                 </tr>
               ) : paginatedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-zinc-500 text-sm">
-                    No users found matching your criteria.
+                  <td colSpan={7} className="py-12 text-center">
+                    <div className="text-zinc-500 text-sm font-medium">No users found matching your search.</div>
                   </td>
                 </tr>
               ) : (
@@ -302,10 +337,20 @@ export default function PublicUsersPage() {
                       {formatSafeDate(user.lastLoginAt)}
                     </td>
                     <td className="px-6 py-4">
+                      {user.lastReadTitle ? (
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-zinc-800 truncate max-w-[150px]" title={user.lastReadTitle}>{user.lastReadTitle}</span>
+                          <span className="text-[10px] text-zinc-500">{formatSafeDate(user.lastReadAt)}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-zinc-400 italic">Not read yet</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest ${
-                        user.status === 'active' ? 'text-emerald-600' : 'text-red-600'
+                        user.status === 'active' ? 'text-emerald-600' : 'text-zinc-500'
                       }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${user.status === 'active' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full ${user.status === 'active' ? 'bg-emerald-500' : 'bg-zinc-400'}`}></span>
                         {user.status}
                       </span>
                     </td>
@@ -363,7 +408,7 @@ export default function PublicUsersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-100">
                   <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">Joined Date</div>
                   <div className="text-sm font-medium text-zinc-900">{formatSafeDate(selectedUser.joinedAt).split(',')[0]}</div>
@@ -373,6 +418,17 @@ export default function PublicUsersPage() {
                   <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">Last Login</div>
                   <div className="text-sm font-medium text-zinc-900">{formatSafeDate(selectedUser.lastLoginAt).split(',')[0]}</div>
                   <div className="text-xs text-zinc-500">{formatSafeDate(selectedUser.lastLoginAt).split(',')[1]?.trim() || ''}</div>
+                </div>
+                <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-100">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">Last Read</div>
+                  {selectedUser.lastReadTitle ? (
+                    <>
+                      <div className="text-xs font-bold text-zinc-900 line-clamp-1" title={selectedUser.lastReadTitle}>{selectedUser.lastReadTitle}</div>
+                      <div className="text-xs text-zinc-500 mt-1">{formatSafeDate(selectedUser.lastReadAt).split(',')[0]}</div>
+                    </>
+                  ) : (
+                    <div className="text-sm text-zinc-400 italic mt-1">Not read yet</div>
+                  )}
                 </div>
               </div>
 

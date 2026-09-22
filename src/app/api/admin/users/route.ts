@@ -37,8 +37,26 @@ export async function GET(req: NextRequest) {
       authMap.set(u.id, u);
     });
 
+    // Fetch library for last read data
+    const { data: libraryData, error: libraryError } = await supabaseAdmin
+      .from("library")
+      .select("user_id, last_read, books(title)")
+      .order("last_read", { ascending: false });
+      
+    const libraryMap = new Map();
+    libraryData?.forEach(l => {
+      // Only keep the most recent last_read per user
+      if (!libraryMap.has(l.user_id)) {
+        libraryMap.set(l.user_id, {
+          lastReadAt: l.last_read,
+          lastReadTitle: l.books?.title || "Unknown Book"
+        });
+      }
+    });
+
     const enrichedUsers = publicUsers?.map(u => {
       const authUser = authMap.get(u.id);
+      const libraryInfo = libraryMap.get(u.id);
       return {
         id: u.id,
         name: u.name,
@@ -46,7 +64,13 @@ export async function GET(req: NextRequest) {
         role: u.is_verified_writer ? "Author" : "User",
         joinedAt: u.created_at,
         lastLoginAt: authUser?.last_sign_in_at || null,
-        status: authUser?.banned_until ? "inactive" : "active"
+        lastReadAt: libraryInfo?.lastReadAt || null,
+        lastReadTitle: libraryInfo?.lastReadTitle || null,
+        status: authUser?.banned_until ? "inactive" : (
+          authUser?.last_sign_in_at && (new Date().getTime() - new Date(authUser.last_sign_in_at).getTime() < 24 * 60 * 60 * 1000)
+            ? "active" 
+            : "offline"
+        )
       };
     }) || [];
 

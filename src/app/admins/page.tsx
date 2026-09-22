@@ -257,38 +257,22 @@ function CreateAdminModal({ onClose, userId, roleName }: { onClose: () => void; 
         throw new Error("Please generate or enter a temporary password.");
       }
 
-      // 1. Create user in Supabase Auth via the admin API endpoint
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password: tempPassword,
+      // 1. Create user via API
+      const res = await fetch("/api/admin/create-admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password: tempPassword,
+          fullName,
+          phone,
+          department,
+          createdBy: userId
+        })
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("Failed to create user account.");
-
-      // 2. Get the Admin role ID
-      const { data: adminRole } = await supabase
-        .from("roles")
-        .select("id")
-        .eq("name", "Admin")
-        .single();
-
-      if (!adminRole) throw new Error("Admin role not found in database. Please run the schema migration.");
-
-      // 3. Insert into operations_users
-      const { error: insertError } = await supabase.from("operations_users").insert({
-        id: authData.user.id,
-        full_name: fullName,
-        email,
-        phone: phone || null,
-        role_id: adminRole.id,
-        department: department || null,
-        status: "Active",
-        requires_password_change: true,
-        created_by: userId || null,
-      });
-
-      if (insertError) throw insertError;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create admin");
 
       // 4. Log the activity
       await logActivity({

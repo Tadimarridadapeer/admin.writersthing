@@ -34,9 +34,14 @@ export async function GET() {
     if (authError) return NextResponse.json({ error: "authError", details: authError }, { status: 500 });
     
     let loginsToday = 0;
+    let activeUsers = 0;
+    const nowTime = new Date().getTime();
     authUsers.forEach(u => {
       if (u.last_sign_in_at && new Date(u.last_sign_in_at) >= new Date(today)) {
         loginsToday++;
+      }
+      if (u.last_sign_in_at && (nowTime - new Date(u.last_sign_in_at).getTime() < 24 * 60 * 60 * 1000)) {
+        activeUsers++;
       }
     });
 
@@ -44,7 +49,8 @@ export async function GET() {
       totalUsers: totalUsers || 0,
       newUsersToday: usersToday || 0,
       newUsersThisWeek: usersThisWeek || 0,
-      loginsToday
+      loginsToday,
+      activeUsers
     });
   } catch (error: any) {
     console.error("Error fetching admin stats:", error);

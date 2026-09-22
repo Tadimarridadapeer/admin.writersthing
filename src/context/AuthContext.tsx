@@ -37,7 +37,7 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password"];
+const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/setup"];
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
